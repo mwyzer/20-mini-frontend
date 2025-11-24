@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.log
+__pycache__/
+.env
+visitor_analytics.db
+.DS_Store
