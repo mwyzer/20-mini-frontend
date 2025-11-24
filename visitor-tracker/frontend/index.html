@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Visitor Tracker Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0f172a;
+        --panel: #111827;
+        --card: #1f2937;
+        --accent: #22d3ee;
+        --text: #e5e7eb;
+        --muted: #9ca3af;
+        --danger: #f472b6;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Inter", system-ui, -apple-system, sans-serif;
+        background: linear-gradient(135deg, #0b1021 0%, #0f172a 60%, #0b1021 100%);
+        color: var(--text);
+        min-height: 100vh;
+      }
+      .container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 32px 20px 64px;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      h1 {
+        font-size: 28px;
+        margin: 0;
+        letter-spacing: -0.02em;
+      }
+      .panel {
+        background: rgba(17, 24, 39, 0.8);
+        border: 1px solid #1f2937;
+        border-radius: 14px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+        padding: 18px;
+      }
+      .filters {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      select {
+        background: var(--card);
+        color: var(--text);
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid #374151;
+        min-width: 140px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+        margin: 18px 0 22px;
+      }
+      .card {
+        background: var(--card);
+        padding: 16px;
+        border-radius: 12px;
+        border: 1px solid #1f2937;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .card .label {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .card .value {
+        font-size: 32px;
+        font-weight: 700;
+      }
+      .card .hint {
+        color: var(--accent);
+        font-size: 12px;
+      }
+      .table-wrapper {
+        overflow-x: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+        color: var(--text);
+      }
+      th,
+      td {
+        padding: 12px 10px;
+        text-align: left;
+        border-bottom: 1px solid #1f2937;
+        font-size: 14px;
+      }
+      th {
+        color: var(--muted);
+        font-weight: 600;
+      }
+      tr:hover td {
+        background: rgba(34, 211, 238, 0.04);
+      }
+      .pill {
+        background: rgba(34, 211, 238, 0.12);
+        color: var(--accent);
+        padding: 6px 10px;
+        border-radius: 999px;
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        font-size: 12px;
+      }
+      .chart {
+        background: var(--card);
+        border-radius: 12px;
+        padding: 12px;
+        border: 1px solid #1f2937;
+        display: grid;
+        gap: 8px;
+      }
+      .bar {
+        height: 10px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #22d3ee, #60a5fa);
+      }
+      .bar-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .bar-label {
+        width: 110px;
+        color: var(--muted);
+        font-size: 13px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .bar-count {
+        font-size: 13px;
+        color: var(--text);
+      }
+      .error {
+        color: var(--danger);
+        margin-top: 10px;
+      }
+      @media (max-width: 640px) {
+        header {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+        .filters {
+          width: 100%;
+        }
+        select {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div>
+          <p class="pill">Visitor Intelligence</p>
+          <h1>Realtime Visitor Dashboard</h1>
+          <p style="color: var(--muted); margin: 6px 0 0;">
+            Live stats, deduplicated within the last 10 minutes.
+          </p>
+        </div>
+        <div class="filters">
+          <select id="filter-select">
+            <option value="day">24 jam terakhir</option>
+            <option value="week">7 hari terakhir</option>
+            <option value="all">Semua waktu</option>
+          </select>
+        </div>
+      </header>
+
+      <div id="root"></div>
+    </div>
+
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <script type="text/babel">
+      const { useEffect, useState, useMemo } = React;
+
+      const API_BASE = "http://localhost:8000";
+      const REFRESH_MS = 5000;
+
+      const rangeLabel = {
+        day: "24 jam",
+        week: "7 hari",
+        all: "Semua waktu",
+      };
+
+      function formatDate(value) {
+        return new Intl.DateTimeFormat("id-ID", {
+          dateStyle: "medium",
+          timeStyle: "medium",
+        }).format(new Date(value));
+      }
+
+      function StatsCard({ label, value, hint }) {
+        return (
+          <div className="card">
+            <span className="label">{label}</span>
+            <span className="value">{value}</span>
+            <span className="hint">{hint}</span>
+          </div>
+        );
+      }
+
+      function VisitsChart({ visitors }) {
+        const max = visitors.reduce((acc, v) => Math.max(acc, v.visit_count), 1);
+        return (
+          <div className="chart">
+            <div style={{ display: "flex", justifyContent: "space-between", color: "var(--muted)", fontSize: 13 }}>
+              <span>Distribusi kunjungan</span>
+              <span>{visitors.length} entri</span>
+            </div>
+            {visitors.length === 0 && <div style={{ color: "var(--muted)" }}>Belum ada data.</div>}
+            {visitors.map((visitor) => {
+              const width = `${Math.max(8, (visitor.visit_count / max) * 100)}%`;
+              return (
+                <div className="bar-row" key={`${visitor.id}-${visitor.last_seen}`}>
+                  <div className="bar-label" title={visitor.ip_address}>{visitor.ip_address}</div>
+                  <div className="bar" style={{ width }}></div>
+                  <div className="bar-count">{visitor.visit_count}x</div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      }
+
+      function App() {
+        const [stats, setStats] = useState({ unique_visitors: 0, total_visits: 0 });
+        const [visitors, setVisitors] = useState([]);
+        const [filter, setFilter] = useState("day");
+        const [loading, setLoading] = useState(true);
+        const [error, setError] = useState("");
+        const [lastUpdated, setLastUpdated] = useState(null);
+
+        const fetchData = async (range) => {
+          try {
+            const query = range === "all" ? "" : `?range=${range}`;
+            const [statsRes, visitorsRes] = await Promise.all([
+              fetch(`${API_BASE}/stats${query}`),
+              fetch(`${API_BASE}/visitors${query}`),
+            ]);
+
+            if (!statsRes.ok || !visitorsRes.ok) {
+              throw new Error("Gagal memuat data dari API");
+            }
+            const statsData = await statsRes.json();
+            const visitorData = await visitorsRes.json();
+            setStats(statsData);
+            setVisitors(visitorData);
+            setLastUpdated(new Date());
+            setError("");
+          } catch (err) {
+            console.error(err);
+            setError(err.message);
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        useEffect(() => {
+          const selectEl = document.getElementById("filter-select");
+          selectEl.value = filter;
+          const onChange = (event) => setFilter(event.target.value);
+          selectEl.addEventListener("change", onChange);
+          return () => selectEl.removeEventListener("change", onChange);
+        }, [filter]);
+
+        useEffect(() => {
+          fetchData(filter);
+          const interval = setInterval(() => fetchData(filter), REFRESH_MS);
+          return () => clearInterval(interval);
+        }, [filter]);
+
+        const friendlyUpdated = useMemo(() => {
+          if (!lastUpdated) return "Belum ada pembaruan";
+          return `Update: ${formatDate(lastUpdated)}`;
+        }, [lastUpdated]);
+
+        return (
+          <>
+            <div className="grid">
+              <StatsCard
+                label="Pengunjung unik"
+                value={stats.unique_visitors}
+                hint={`Dalam ${rangeLabel[filter]}`}
+              />
+              <StatsCard
+                label="Total kunjungan"
+                value={stats.total_visits}
+                hint={`Termasuk kunjungan berulang`}
+              />
+              <div className="card">
+                <span className="label">Status</span>
+                <span className="value" style={{ fontSize: 20 }}>
+                  {loading ? "Memuat..." : "Aktif"}
+                </span>
+                <span className="hint">{friendlyUpdated}</span>
+              </div>
+            </div>
+
+            <VisitsChart visitors={visitors.slice(0, 8)} />
+
+            <div className="panel" style={{ marginTop: 18 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <h2 style={{ margin: 0 }}>Detail pengunjung</h2>
+                <span className="pill">Filter: {rangeLabel[filter]}</span>
+              </div>
+              {error && <div className="error">{error}</div>}
+              <div className="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>IP Address</th>
+                      <th>User Agent</th>
+                      <th>Terakhir terlihat</th>
+                      <th>Kunjungan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visitors.length === 0 && (
+                      <tr>
+                        <td colSpan="4" style={{ color: "var(--muted)", padding: "18px 10px" }}>
+                          Belum ada data pengunjung.
+                        </td>
+                      </tr>
+                    )}
+                    {visitors.map((visitor) => (
+                      <tr key={`${visitor.id}-${visitor.last_seen}`}>
+                        <td>{visitor.ip_address}</td>
+                        <td>{visitor.user_agent}</td>
+                        <td>{formatDate(visitor.last_seen)}</td>
+                        <td>{visitor.visit_count}x</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<App />);
+    </script>
+  </body>
+</html>
